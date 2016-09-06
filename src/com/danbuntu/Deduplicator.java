@@ -17,6 +17,7 @@ class Deduplicator {
     final static int VERBOSE = 2;
     private int mLogLevel = NORMAL;
 
+    private long duplicatedBytes;
     private File mFolder;
     private boolean mRecursive;
     private boolean mDelete = false;
@@ -32,6 +33,7 @@ class Deduplicator {
         mRecursive = false;
         mSizeDuplicates = new HashMap<>();
         mDuplicates = new ArrayList<>();
+        duplicatedBytes = 0;
     }
 
     void setLogLevel(int logLevel) {
@@ -59,13 +61,13 @@ class Deduplicator {
                 log("checking: " + sizeDuplicates.size() + " files with matching sizes", VERBOSE);
 
                 // run a checksum on each of the files with matching sizes
-                scanFileChecksums(sizeDuplicates);
+                scanFileChecksums(sizeDuplicates, size);
             }
         }
 
         if(!mDelete) {
             for (File f : mDuplicates) {
-                log("found duplicate: " + f.getAbsolutePath(), NORMAL);
+                log("duplicate file: " + f.getAbsolutePath(), NORMAL);
             }
         } else {
             deleteFiles(mDuplicates);
@@ -74,6 +76,7 @@ class Deduplicator {
         long endTime = System.currentTimeMillis();
         long duration = endTime - startTime;
 
+        log("Found: " + mDuplicates.size() + " duplicate files taking up " + Utils.readableStorageSpace(duplicatedBytes), NORMAL);
         log("Took: " + Utils.readableDuration(duration), NORMAL);
     }
 
@@ -91,7 +94,7 @@ class Deduplicator {
         }
     }
 
-    private void scanFileChecksums(ArrayList<File> files) {
+    private void scanFileChecksums(ArrayList<File> files, long size) {
         if(files == null) return;
         ArrayList<String> hashes = new ArrayList<>();
 
@@ -103,6 +106,7 @@ class Deduplicator {
             // this will leave only 1 file per unique checksum
             if(hashes.contains(checksum)) {
                 mDuplicates.add(file);
+                duplicatedBytes += size;
             } else {
                 hashes.add(checksum);
             }

@@ -82,4 +82,15 @@ class Utils {
                 duration % 1000);
     }
 
+    static String readableStorageSpace(long bytes) {
+        String[] units = {"bytes", "kb", "mb", "gb"};
+        int index = 0;
+        float calculated = (float) bytes;
+        while(calculated > 1024 && index < units.length - 1) {
+            calculated /= 1024f;
+            index++;
+        }
+        return String.format("%s %s", calculated, units[index]);
+    }
+
 }
