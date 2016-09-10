@@ -1,5 +1,7 @@
 package com.danbuntu;
 
+import org.apache.commons.cli.*;
+
 import java.io.File;
 import java.security.Security;
 import java.util.ArrayList;
@@ -9,12 +11,14 @@ import java.util.HashMap;
  * Created by Dan Griffin on 9/6/2016.
  * Have a great day!
  */
-class Deduplicator {
+public class Deduplicator {
 
-    final static int ERROR = -1;
-    final static int QUIET = 0;
-    final static int NORMAL = 1;
-    final static int VERBOSE = 2;
+    private final static String name = "deduplicator";
+
+    public final static int QUIET = 0;
+    public final static int NORMAL = 1;
+    public final static int VERBOSE = 2;
+    private final static int ERROR = -1;
     private int mLogLevel = NORMAL;
 
     private long duplicatedBytes;
@@ -28,7 +32,7 @@ class Deduplicator {
         this(new File(path));
     }
 
-    Deduplicator(File folder) {
+    public Deduplicator(File folder) {
         mFolder = folder.getAbsoluteFile();
         mRecursive = false;
         mSizeDuplicates = new HashMap<>();
@@ -36,15 +40,81 @@ class Deduplicator {
         duplicatedBytes = 0;
     }
 
-    void setLogLevel(int logLevel) {
+    public static void main(String[] args) {
+        Options options = new Options();
+
+        Option input = new Option("f", "folder", true, "folder to scan");
+        input.setRequired(true);
+        options.addOption(input);
+
+        Option recursive = new Option("r", "recursive", false, "recurse directories");
+        recursive.setRequired(false);
+        options.addOption(recursive);
+
+        Option delete = new Option("d", "delete", false, "delete the duplicate files that are found, " +
+                "without this, nothing will be deleted. be careful when using this with the -r switch!");
+        delete.setRequired(false);
+        options.addOption(delete);
+
+        Option quiet = new Option("q", "quiet", false, "quiet mode, don't print anything");
+        quiet.setRequired(false);
+        options.addOption(quiet);
+
+        Option verbose = new Option("v", "verbose", false, "verbose mode, print everything");
+        verbose.setRequired(false);
+        options.addOption(verbose);
+
+        CommandLineParser parser = new DefaultParser();
+        HelpFormatter formatter = new HelpFormatter();
+        CommandLine cmd;
+
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            System.out.println(e.getMessage());
+            formatter.printHelp(name, options);
+
+            System.exit(1);
+            return;
+        }
+
+        String folderName = cmd.getOptionValue("f");
+        File folder = new File(folderName);
+
+        if(!folder.isDirectory()) {
+            System.out.println("Not a folder: " + folderName);
+            System.exit(1);
+        }
+
+        int logLevel = Deduplicator.NORMAL;
+        if(cmd.hasOption("q")) {
+            logLevel = Deduplicator.QUIET;
+        } else if(cmd.hasOption("v")) {
+            logLevel = Deduplicator.VERBOSE;
+        }
+
+        // run the actual deduplication
+        Deduplicator dedup = new Deduplicator(folder);
+        dedup.setRecursive(cmd.hasOption("r"));
+        dedup.setDelete(cmd.hasOption("d"));
+        dedup.setLogLevel(logLevel);
+        dedup.deduplicate();
+
+    }
+
+    public void setLogLevel(int logLevel) {
         mLogLevel = logLevel;
     }
 
-    void setDelete(boolean set) {
+    public void setDelete(boolean set) {
         mDelete = set;
     }
 
-    void deduplicate() {
+    public void setRecursive(boolean set) {
+        mRecursive = set;
+    }
+
+    public void deduplicate() {
 
         long startTime = System.currentTimeMillis();
 
@@ -150,9 +220,5 @@ class Deduplicator {
         } else if(level <= mLogLevel) {
             System.out.println(message);
         }
-    }
-
-    void setRecursive(boolean set) {
-        mRecursive = set;
     }
 }
