@@ -21,6 +21,8 @@ public class Deduplicator {
     private int mLogLevel = NORMAL;
 
     private long duplicatedBytes;
+    private int potentialDuplicates;
+    private int currentIndex;
     private File mFolder;
     private boolean mRecursive;
     private boolean mDelete = false;
@@ -37,6 +39,8 @@ public class Deduplicator {
         mSizeDuplicates = new HashMap<>();
         mDuplicates = new ArrayList<>();
         duplicatedBytes = 0;
+        potentialDuplicates = 0;
+        currentIndex = 0;
     }
 
     public static void main(String[] args) {
@@ -121,13 +125,20 @@ public class Deduplicator {
         // much quicker than finding a checksum for each file
         scanSizeMatches(mFolder);
 
+        int l;
+        for(long size : mSizeDuplicates.keySet()) {
+            if((l = mSizeDuplicates.get(size).size()) > 1) {
+                potentialDuplicates += l;
+            }
+        }
+
+        currentIndex = 0;
         for(long size : mSizeDuplicates.keySet()) {
 
             // this represents a list of files with the same size
             ArrayList<File> sizeDuplicates = mSizeDuplicates.get(size);
 
             if(sizeDuplicates != null && sizeDuplicates.size() > 1) {
-                log("checking: " + sizeDuplicates.size() + " files with matching sizes", VERBOSE);
 
                 // run a checksum on each of the files with matching sizes
                 scanFileChecksums(sizeDuplicates, size);
@@ -168,6 +179,14 @@ public class Deduplicator {
         ArrayList<String> hashes = new ArrayList<>();
 
         for(File file : files) {
+            currentIndex++;
+            String message;
+            log(String.format("Checking potential duplicate %s of %s", currentIndex, potentialDuplicates),
+                    NORMAL,
+                    true);
+            if(currentIndex == potentialDuplicates) {
+                log("\n", NORMAL, true);
+            }
             String checksum = Utils.sha256file(file.getAbsolutePath());
             if(checksum == null) continue;
 
@@ -211,13 +230,21 @@ public class Deduplicator {
     }
 
     private void log(String message, int level) {
+        log(message, level, false);
+    }
+
+    private void log(String message, int level, boolean oneLine) {
         if(mLogLevel == QUIET) return;
 
         // log everything that is under or equal to the set log level
         if(level == ERROR) {
             System.err.print(message);
         } else if(level <= mLogLevel) {
-            System.out.println(message);
+            if(oneLine) {
+                System.out.print("\r" + message);
+            } else {
+                System.out.println(message);
+            }
         }
     }
 }
